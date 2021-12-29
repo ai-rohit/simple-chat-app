@@ -7,6 +7,7 @@ const btn = document.querySelector("#send");
 const messages = document.querySelector("#messages");
 const messageTemp = document.querySelector("#message-template").innerHTML;
 const locationTemp = document.querySelector("#location-template").innerHTML;
+const sidebarTemp = document.querySelector("#sidebar-template").innerHTML;
 // console.log(socket);
 
 // socket.on("countUpdated", (count) =>{
@@ -14,26 +15,46 @@ const locationTemp = document.querySelector("#location-template").innerHTML;
 //     console.log(count);
 // })
 
+const {username, room} = Qs.parse(location.search.replace("?", ""));
+
+const autoscroll = () =>{
+    const newMessage = messages.lastElementChild;
+    const newMessageStyles = getComputedStyle(newMessage);
+    const newMessageMargin = parseInt(newMessageStyles.marginBottom);
+    const newMessageHeight = newMessage.offsetHeight + newMessageMargin;
+    const visibleHeight = messages.offsetHeight;
+
+    const contentHeight = messages.scrollHeight;
+
+    const scrollOffset = messages.scrollTop + visibleHeight;
+
+    if(contentHeight - newMessageHeight <= scrollOffset){
+        messages.scrollTop = messages.scrollHeight;
+    }
+
+
+}
+
 socket.on("message", (message)=>{
-    console.log(message);
-    const html = Mustache.render(messageTemp, {message: message.text, 
+    const html = Mustache.render(messageTemp, {
+                                            username: message.user,
+                                            message: message.text, 
                                             createdAt: moment(message.createdAt).format("h:mm a")
                                          });         
     messages.insertAdjacentHTML("beforeend", html);
+    autoscroll();
 })
 socket.on("locationMessage", (message)=>{
     console.log(message)
-    const html = Mustache.render(locationTemp, {message: message.text, createdAt: moment(message.createdAt).format("h:mm a")});
-    messages.insertAdjacentHTML("beforeend", html);    
+    const html = Mustache.render(locationTemp, {username:message.user,message: message.text, createdAt: moment(message.createdAt).format("h:mm a")});
+    messages.insertAdjacentHTML("beforeend", html);  
+    autoscroll();  
 })
 
-socket.on("userDisconnected", (message)=>{
-    console.log(message);
-})
 
 btn.addEventListener("click", ()=>{
     if(messageInput.value==""){
-        alert("Please enter a message before sending")
+        return alert("Please enter a message before sending")
     }else{
         btn.setAttribute("disabled", "disabled");
         socket.emit("sendMessage", messageInput.value, (message)=>{
@@ -41,16 +62,15 @@ btn.addEventListener("click", ()=>{
                 btn.removeAttribute("disabled");
                 return console.log(message);
             }
-            console.log("message delivered");
             btn.removeAttribute("disabled");
             messageInput.value = "";
             messageInput.focus();
+            autoscroll();
         });
     }
 })
 
 sendBtn.addEventListener("click", ()=>{
-    console.log("hello")
     if(!navigator.geolocation){
         return alert("Geolocation is not supported by your browser");
     }
@@ -64,12 +84,21 @@ sendBtn.addEventListener("click", ()=>{
             sendBtn.removeAttribute("disabled");
         })
     })
+    autoscroll();
 });
 
-// const btn = document.querySelector("#updateButton");
+socket.emit("join", {username, room}, (error)=>{
+    if(error){
+        alert(error);
+        location.href = "/";
+    }
+});
 
-
-// btn.addEventListener("click", ()=>{
-//     console.log("btn clicked")
-//     socket.emit("updateCount");
-// })
+const sidebar = document.querySelector("#sidebar");
+socket.on("roomData", ({room, users})=>{
+    const html = Mustache.render(sidebarTemp, {
+        room,
+        users
+    })
+    sidebar.innerHTML = html;
+})
