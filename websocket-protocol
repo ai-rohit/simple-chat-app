@@ -1,0 +1,10 @@
+/**
+
+    Allows to setup communication between server and clients
+    Allows full-duplex (bi-directional) communication
+
+    Separate protocol from HTTP
+
+    Persistent connection between server and client
+
+**/
